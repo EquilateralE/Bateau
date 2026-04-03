@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  web:
+    image: vg_prod_web:latest       # Image custom buildée avec le code embarqué
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vg_prod_web
+    ports:
+      - "8081:80"                   # Port différent du dev pour coexistence
+    environment:
+      APP_ENV: production
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - vg_prod_net
+
+  db:
+    image: mysql:8.0
+    container_name: vg_prod_db
+    # Pas de port exposé en prod (sécurité)
+    environment:
+      MYSQL_ROOT_PASSWORD: prod_root_pass
+      MYSQL_DATABASE: vide_grenier
+      MYSQL_USER: vg_user
+      MYSQL_PASSWORD: vg_pass
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - vg_prod_db_data:/var/lib/mysql    # Répertoire différent du dev
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "vg_user", "-pvg_pass"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - vg_prod_net
+
+volumes:
+  vg_prod_db_data:
+    name: vg_prod_db_data            # Volume distinct de celui du dev
+
+networks:
+  vg_prod_net:
+    name: vg_prod_net
